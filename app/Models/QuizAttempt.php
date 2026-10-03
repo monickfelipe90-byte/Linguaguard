@@ -20,6 +20,14 @@ class QuizAttempt extends Model
 
     public const FINISHED_STATUSES = [self::STATUS_COMPLETED, self::STATUS_TIMED_OUT];
 
+    public const REVIEW_NORMAL = 'normal';
+
+    public const REVIEW_FLAGGED = 'flagged';
+
+    public const REVIEW_REVIEWED = 'reviewed';
+
+    public const REVIEW_STATUSES = [self::REVIEW_NORMAL, self::REVIEW_FLAGGED, self::REVIEW_REVIEWED];
+
     /**
      * Score-related fields are only ever written by the QuizEngine service,
      * never mass-assigned from request input.
@@ -37,6 +45,10 @@ class QuizAttempt extends Model
             'percentage' => 'float',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'tab_switch_count' => 'integer',
+            'warning_count' => 'integer',
+            'flagged_at' => 'datetime',
+            'reviewed_at' => 'datetime',
         ];
     }
 
@@ -53,6 +65,21 @@ class QuizAttempt extends Model
     public function answers(): HasMany
     {
         return $this->hasMany(QuizAnswer::class);
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(QuizAttemptItem::class)->orderBy('position');
+    }
+
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(QuizActivityLog::class)->orderBy('id');
+    }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 
     public function isFinished(): bool

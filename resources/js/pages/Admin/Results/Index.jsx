@@ -5,7 +5,7 @@ import AppLayout from '../../../layouts/AppLayout';
 import { Button, Card, CardHeader, EmptyState, Input, PageHeader, Select } from '../../../components/ui';
 import Pagination from '../../../components/Pagination';
 import PerformancePanel from '../../../components/PerformancePanel';
-import { ResultBadge, StatusBadge } from '../../../components/quiz';
+import { ResultBadge, ReviewBadge, StatusBadge } from '../../../components/quiz';
 import { formatDate, formatPercent } from '../../../lib/format';
 
 export default function Index({ attempts, performance, recentPerformance, filters, quizzes, learners }) {
@@ -131,6 +131,7 @@ export default function Index({ attempts, performance, recentPerformance, filter
                                                     <div className="flex flex-wrap gap-1">
                                                         <StatusBadge status={a.status} />
                                                         <ResultBadge attempt={a} />
+{a.review_status !== 'normal' && <ReviewBadge status={a.review_status} />}
                                                     </div>
                                                 </td>
                                                 <td className="px-5 py-3 whitespace-nowrap text-slate-600">{formatDate(a.completed_at ?? a.started_at)}</td>
@@ -163,6 +164,7 @@ export default function Index({ attempts, performance, recentPerformance, filter
                                                     )}
                                                     <StatusBadge status={a.status} />
                                                     <ResultBadge attempt={a} />
+{a.review_status !== 'normal' && <ReviewBadge status={a.review_status} />}
                                                 </div>
                                                 <p className="mt-1 text-xs text-slate-400">{formatDate(a.completed_at ?? a.started_at)}</p>
                                             </div>

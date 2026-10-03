@@ -20,6 +20,9 @@ class QuizRequest extends FormRequest
             'randomize_questions' => $this->boolean('randomize_questions'),
             'randomize_choices' => $this->boolean('randomize_choices'),
             'allow_retry' => $this->boolean('allow_retry'),
+            'tab_detection_enabled' => $this->boolean('tab_detection_enabled'),
+            'auto_submit_on_flag' => $this->boolean('auto_submit_on_flag'),
+            'max_tab_switches' => $this->input('max_tab_switches', 3),
             'question_ids' => array_values((array) $this->input('question_ids', [])),
         ]);
     }
@@ -36,6 +39,9 @@ class QuizRequest extends FormRequest
             'randomize_questions' => ['boolean'],
             'randomize_choices' => ['boolean'],
             'allow_retry' => ['boolean'],
+            'tab_detection_enabled' => ['boolean'],
+            'max_tab_switches' => ['required', 'integer', 'min:1', 'max:20'],
+            'auto_submit_on_flag' => ['boolean'],
             'question_ids' => ['array', 'max:200'],
             'question_ids.*' => ['integer', 'distinct', 'exists:questions,id'],
         ];
@@ -60,6 +66,8 @@ class QuizRequest extends FormRequest
             'time_limit.max' => 'The time limit cannot exceed 300 minutes.',
             'passing_score.min' => 'The passing score must be between 0 and 100.',
             'passing_score.max' => 'The passing score must be between 0 and 100.',
+            'max_tab_switches.min' => 'Allow at least 1 tab switch before flagging.',
+            'max_tab_switches.max' => 'The maximum tab switches cannot exceed 20.',
             'question_ids.*.distinct' => 'A question can only be added to a quiz once.',
             'question_ids.*.exists' => 'One of the selected questions no longer exists.',
         ];

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
-import { Check, ClipboardList, Copy, ListOrdered, Pencil, Power, RefreshCw, Shuffle, Timer, Trash2, Trophy, Users } from 'lucide-react';
+import { Check, ClipboardList, Copy, ListOrdered, Pencil, Power, RefreshCw, ShieldCheck, Shuffle, Timer, Trash2, Trophy, Users } from 'lucide-react';
 import AppLayout from '../../../layouts/AppLayout';
 import { BackLink, Badge, Button, Card, CardHeader, EmptyState, LinkButton, PageHeader } from '../../../components/ui';
 import { ConfirmDialog } from '../../../components/Modal';
@@ -89,6 +89,12 @@ export default function Show({ quiz, questions, performance, recentAttempts, att
                         </Row>
                         <Row label="Retries allowed" icon={RefreshCw}>
                             {quiz.allow_retry ? 'Yes' : 'No'}
+                        </Row>
+                        <Row label="Tab-switch detection" icon={ShieldCheck}>
+                            {quiz.tab_detection_enabled ? `On · flag at ${quiz.max_tab_switches}` : 'Off'}
+                        </Row>
+                        <Row label="Auto-submit when flagged" icon={ShieldCheck}>
+                            {quiz.tab_detection_enabled && quiz.auto_submit_on_flag ? 'Yes' : 'No'}
                         </Row>
                         <Row label="Attempts" icon={Users}>
                             {attemptsCount}

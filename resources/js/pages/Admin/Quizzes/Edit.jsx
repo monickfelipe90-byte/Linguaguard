@@ -14,6 +14,9 @@ export default function Edit({ quiz, selectedIds, bank, categories, difficulties
         randomize_questions: quiz.randomize_questions,
         randomize_choices: quiz.randomize_choices,
         allow_retry: quiz.allow_retry,
+        tab_detection_enabled: quiz.tab_detection_enabled ?? true,
+        max_tab_switches: quiz.max_tab_switches ?? 3,
+        auto_submit_on_flag: quiz.auto_submit_on_flag ?? false,
         question_ids: selectedIds,
     });
 

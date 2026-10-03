@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@inertiajs/react';
-import { ArrowDown, ArrowUp, BookMarked, ListPlus, Plus, Save, Search, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookMarked, ListPlus, Plus, Save, Search, ShieldCheck, X } from 'lucide-react';
 import { Button, Card, EmptyState, Field, Input, Select, TextArea, Toggle, cx } from './ui';
 import { CategoryBadge, DifficultyBadge, HighlightedSentence } from './quiz';
 
@@ -39,12 +39,58 @@ export default function QuizForm({ form, onSubmit, bank, categories, difficultie
                     <div className="space-y-2">
                         <Toggle id="is_active" checked={data.is_active} onChange={(v) => setData('is_active', v)} label="Active" description="Learners can join with the quiz code." />
                         {errors.is_active && <p className="text-sm font-medium text-rose-600">{errors.is_active}</p>}
-                        <Toggle id="randomize_questions" checked={data.randomize_questions} onChange={(v) => setData('randomize_questions', v)} label="Randomize questions" description="Each attempt gets its own question order." />
-                        <Toggle id="randomize_choices" checked={data.randomize_choices} onChange={(v) => setData('randomize_choices', v)} label="Randomize choices" description="Shuffle the four answer choices." />
                         <Toggle id="allow_retry" checked={data.allow_retry} onChange={(v) => setData('allow_retry', v)} label="Allow retries" description="Learners may take the quiz again." />
                     </div>
                 </Card>
             </div>
+
+            <Card className="p-5 sm:p-6">
+                <div className="flex items-start gap-3">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <ShieldCheck className="size-5" aria-hidden />
+                    </span>
+                    <div>
+                        <h2 className="font-bold text-slate-900">Quiz security settings</h2>
+                        <p className="text-sm text-slate-500">Discourage cheating and record activity for your review. Learners are told about these settings before they start.</p>
+                    </div>
+                </div>
+                <div className="mt-5 grid gap-2 md:grid-cols-2">
+                    <Toggle
+                        id="tab_detection_enabled"
+                        checked={data.tab_detection_enabled}
+                        onChange={(v) => setData('tab_detection_enabled', v)}
+                        label="Tab-switch detection"
+                        description="Record when a learner leaves the quiz page and show a warning."
+                    />
+                    <div className={cx('rounded-xl p-3 ring-1 ring-slate-200', !data.tab_detection_enabled && 'opacity-50')}>
+                        <Field label="Maximum tab switches" htmlFor="max_tab_switches" error={errors.max_tab_switches} hint="Warnings are shown before this; reaching it flags the attempt for review.">
+                            <Input
+                                id="max_tab_switches"
+                                type="number"
+                                min={1}
+                                max={20}
+                                inputMode="numeric"
+                                value={data.max_tab_switches}
+                                onChange={(e) => setData('max_tab_switches', e.target.value)}
+                                error={errors.max_tab_switches}
+                                disabled={!data.tab_detection_enabled}
+                                className="max-w-32"
+                            />
+                        </Field>
+                    </div>
+                    <div className={!data.tab_detection_enabled ? 'pointer-events-none opacity-50' : undefined}>
+                        <Toggle
+                            id="auto_submit_on_flag"
+                            checked={data.auto_submit_on_flag}
+                            onChange={(v) => setData('auto_submit_on_flag', v)}
+                            label="Automatic submission"
+                            description="Submit the quiz automatically when the maximum is reached. Off: the learner keeps going and the attempt is only flagged."
+                        />
+                    </div>
+                    <Toggle id="randomize_questions" checked={data.randomize_questions} onChange={(v) => setData('randomize_questions', v)} label="Randomize questions" description="Each attempt gets its own question order, kept for the whole attempt." />
+                    <Toggle id="randomize_choices" checked={data.randomize_choices} onChange={(v) => setData('randomize_choices', v)} label="Randomize choices" description="Shuffle the four answer choices. Scoring is unaffected." />
+                </div>
+            </Card>
 
             {attemptsCount > 0 && (
                 <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200">

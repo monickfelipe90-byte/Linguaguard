@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
-import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Flag, Hexagon, Lightbulb, Send, Square, Timer, Triangle, XCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Flag, Hexagon, Lightbulb, Send, ShieldAlert, Square, Timer, Triangle, XCircle } from 'lucide-react';
 import Flash from '../../components/Flash';
 import { LogoMark } from '../../components/Logo';
 import { ConfirmDialog } from '../../components/Modal';
 import { Button, cx } from '../../components/ui';
 import { HighlightedSentence } from '../../components/quiz';
 import { formatClock } from '../../lib/format';
+import useTabMonitor from '../../lib/useTabMonitor';
+import TabWarningModal from '../../components/TabWarningModal';
 
 // Tile styles by screen position (the answer keys themselves may be shuffled by the server).
 const tiles = [
@@ -16,8 +18,9 @@ const tiles = [
     { bg: 'bg-emerald-600', hover: 'hover:bg-emerald-500', ring: 'ring-emerald-300', icon: Square },
 ];
 
-export default function Play({ attempt, quiz, questions }) {
+export default function Play({ attempt, quiz, questions, monitoring }) {
     const total = questions.length;
+    const tab = useTabMonitor({ attemptId: attempt.id, monitoring });
     const answeredCount = questions.filter((q) => q.answer).length;
 
     const [index, setIndex] = useState(() => {
@@ -91,7 +94,7 @@ export default function Play({ attempt, quiz, questions }) {
     // Keyboard: 1–4 choose, Enter submits / moves on, arrows navigate.
     useEffect(() => {
         const onKey = (e) => {
-            if (confirmFinish || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (confirmFinish || tab.warning || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             const n = Number(e.key);
             if (!answer && n >= 1 && n <= question.choices.length) {
                 setSelected((s) => ({ ...s, [question.id]: question.choices[n - 1].key }));
@@ -121,6 +124,18 @@ export default function Play({ attempt, quiz, questions }) {
                     <p className="truncate text-sm font-bold sm:text-base">{quiz.title}</p>
                     <p className="text-xs font-semibold text-indigo-200">
                         Question {index + 1} of {total} · {answeredCount} answered
+                        {tab.enabled && (
+                            <span
+                                className={cx(
+                                    'ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 align-middle',
+                                    tab.flagged ? 'bg-amber-400 text-amber-950' : tab.warning_count > 0 ? 'bg-white/20 text-white' : 'bg-white/10 text-indigo-100',
+                                )}
+                                title="Times you left the quiz page"
+                            >
+                                <ShieldAlert className="size-3" aria-hidden />
+                                {tab.flagged ? 'Flagged' : 'Warnings'} {tab.tab_switch_count}/{tab.max_tab_switches}
+                            </span>
+                        )}
                     </p>
                 </div>
                 <div
@@ -271,6 +286,8 @@ export default function Play({ attempt, quiz, questions }) {
                     </div>
                 </div>
             </div>
+
+            <TabWarningModal warning={tab.warning} onClose={tab.dismissWarning} />
 
             <ConfirmDialog
                 open={confirmFinish}

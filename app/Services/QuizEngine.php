@@ -4,12 +4,15 @@ namespace App\Services;
 
 use App\Models\Question;
 use App\Models\Quiz;
+use App\Models\QuizActivityLog;
 use App\Models\QuizAnswer;
 use App\Models\QuizAttempt;
+use App\Models\QuizAttemptItem;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Random\Randomizer;
 
 /**
  * All quiz rules live here: eligibility, attempt creation, answer checking,
@@ -95,43 +98,106 @@ class QuizEngine
             $attempt->started_at = now();
             $attempt->save();
 
+            $this->createItems($attempt, $quiz);
+            QuizActivityLog::record($attempt, QuizActivityLog::QUIZ_STARTED, [
+                'attempt_number' => $attempt->attempt_number,
+                'total_questions' => $attempt->total_questions,
+            ]);
+
             return $attempt;
         });
     }
 
     /**
-     * The attempt's questions in the order this learner sees them. When the
-     * quiz randomizes questions, the order is a stable per-attempt shuffle.
+     * Saves the attempt's question order and each question's choice order.
+     * Called once when the attempt starts, so nothing reshuffles afterwards
+     * (on refresh, navigation, or if the quiz is edited mid-attempt).
+     */
+    private function createItems(QuizAttempt $attempt, Quiz $quiz): void
+    {
+        $randomizer = new Randomizer; // cryptographically secure engine by default
+        $questionIds = $quiz->questions()->pluck('questions.id')->all();
+
+        if ($quiz->randomize_questions) {
+            $questionIds = $randomizer->shuffleArray($questionIds);
+        }
+
+        foreach (array_values($questionIds) as $index => $questionId) {
+            $keys = $quiz->randomize_choices ? $randomizer->shuffleArray(Question::CHOICES) : Question::CHOICES;
+
+            $item = new QuizAttemptItem;
+            $item->quiz_attempt_id = $attempt->id;
+            $item->question_id = $questionId;
+            $item->position = $index + 1;
+            $item->choice_order = implode('', $keys);
+            $item->save();
+        }
+    }
+
+    /**
+     * The attempt's saved items (question + choice order) in display order.
+     * Attempts created before items existed get the same order they always
+     * had: still-running ones are saved now, finished ones are only computed.
+     *
+     * @return Collection<int, QuizAttemptItem>
+     */
+    public function items(QuizAttempt $attempt): Collection
+    {
+        $attempt->loadMissing('quiz');
+        $items = $attempt->items()->with('question')->get();
+
+        if ($items->isNotEmpty()) {
+            return $items;
+        }
+
+        $questions = $attempt->quiz->questions()->get();
+        if ($attempt->quiz->randomize_questions) {
+            $questions = $questions->sortBy(fn (Question $q) => $this->seed($attempt, $q->id, 'q'))->values();
+        }
+
+        $items = $questions->values()->map(function (Question $q, $index) use ($attempt) {
+            $keys = Question::CHOICES;
+            if ($attempt->quiz->randomize_choices) {
+                usort($keys, fn ($a, $b) => strcmp($this->seed($attempt, $q->id, $a), $this->seed($attempt, $q->id, $b)));
+            }
+
+            $item = new QuizAttemptItem;
+            $item->quiz_attempt_id = $attempt->id;
+            $item->question_id = $q->id;
+            $item->position = $index + 1;
+            $item->choice_order = implode('', $keys);
+            $item->setRelation('question', $q);
+
+            return $item;
+        });
+
+        if (! $attempt->isFinished()) {
+            $items->each(fn (QuizAttemptItem $item) => $item->save());
+        }
+
+        return $items;
+    }
+
+    /**
+     * The attempt's questions in the order this learner sees them.
      *
      * @return Collection<int, Question>
      */
     public function orderedQuestions(QuizAttempt $attempt): Collection
     {
-        $questions = $attempt->quiz->questions()->get();
-
-        if ($attempt->quiz->randomize_questions) {
-            $questions = $questions->sortBy(fn (Question $q) => $this->seed($attempt, $q->id, 'q'))->values();
-        }
-
-        return $questions;
+        return $this->items($attempt)->map(fn (QuizAttemptItem $item) => $item->question)->filter()->values();
     }
 
     /**
-     * Choices in display order. Keys stay the original A–D letters so the
-     * server can check them against the stored correct_answer.
+     * Choices in the attempt's saved display order. Keys stay the original A–D
+     * letters, so the server checks them against the stored correct_answer.
      *
      * @return array<int, array{key: string, text: string}>
      */
     public function choicesFor(QuizAttempt $attempt, Question $question): array
     {
-        $keys = Question::CHOICES;
-
-        if ($attempt->quiz->randomize_choices) {
-            usort($keys, fn ($a, $b) => strcmp(
-                $this->seed($attempt, $question->id, $a),
-                $this->seed($attempt, $question->id, $b),
-            ));
-        }
+        $item = $this->items($attempt)->firstWhere('question_id', $question->id);
+        $keys = $item ? $item->choiceKeys() : Question::CHOICES;
 
         return array_map(fn ($key) => ['key' => $key, 'text' => $question->optionText($key)], $keys);
     }
@@ -158,7 +224,8 @@ class QuizEngine
             throw new QuizException('Please choose one of the four answers.');
         }
 
-        $question = $attempt->quiz->questions()->where('questions.id', $questionId)->first();
+        // Only questions frozen into this attempt at start can be answered.
+        $question = $this->items($attempt)->firstWhere('question_id', $questionId)?->question;
         if (! $question) {
             throw new QuizException('That question is not part of this quiz.');
         }
@@ -189,11 +256,12 @@ class QuizEngine
      * computes the score from the stored, server-checked answers.
      * Calling it on an already finished attempt is a no-op.
      */
-    public function finalize(QuizAttempt $attempt, string $status = QuizAttempt::STATUS_COMPLETED): QuizAttempt
+    public function finalize(QuizAttempt $attempt, string $status = QuizAttempt::STATUS_COMPLETED, ?string $reason = null): QuizAttempt
     {
         $attempt->loadMissing('quiz');
+        $questionIds = $this->items($attempt)->pluck('question_id');
 
-        DB::transaction(function () use ($attempt, $status) {
+        DB::transaction(function () use ($attempt, $status, $reason, $questionIds) {
             $locked = QuizAttempt::whereKey($attempt->id)->lockForUpdate()->first();
 
             if ($locked->isFinished()) {
@@ -205,7 +273,6 @@ class QuizEngine
                 $status = QuizAttempt::STATUS_TIMED_OUT;
             }
 
-            $questionIds = $attempt->quiz->quizQuestions()->pluck('question_id');
             $answeredIds = $attempt->answers()->pluck('question_id');
             $now = now();
 
@@ -230,9 +297,86 @@ class QuizEngine
                 ? $now->min($attempt->deadline())
                 : $now;
             $locked->save();
+
+            QuizActivityLog::record($locked, $status === QuizAttempt::STATUS_TIMED_OUT ? QuizActivityLog::TIMED_OUT : QuizActivityLog::SUBMITTED, array_filter([
+                'score' => $score,
+                'total_questions' => $total,
+                'percentage' => $locked->percentage,
+                'reason' => $reason,
+            ], fn ($v) => $v !== null));
         });
 
         return $attempt->refresh();
+    }
+
+    /**
+     * Handles a tab-visibility event sent by the learner's browser.
+     *
+     * The browser only reports *that* the page was hidden or shown; the count,
+     * warnings, flag and any automatic submission are decided here. Duplicate
+     * deliveries of the same event (same client event id) are ignored, and an
+     * event whose "hidden" report was lost is still counted once on return.
+     *
+     * @return array{tab_switch_count:int, warning_count:int, max_tab_switches:int, flagged:bool, auto_submitted:bool, counted:bool}
+     */
+    public function recordVisibility(QuizAttempt $attempt, string $state, string $eventId): array
+    {
+        $attempt->loadMissing('quiz');
+        $quiz = $attempt->quiz;
+        $counted = false;
+        $autoSubmit = false;
+
+        if ($quiz->tab_detection_enabled && ! $attempt->isFinished() && ! $attempt->isOverdue(self::ANSWER_GRACE_SECONDS)) {
+            DB::transaction(function () use ($attempt, $quiz, $state, $eventId, &$counted, &$autoSubmit) {
+                $locked = QuizAttempt::whereKey($attempt->id)->lockForUpdate()->first();
+                if ($locked->isFinished()) {
+                    return;
+                }
+
+                $switchKey = "{$eventId}:hidden";
+                $alreadyCounted = QuizActivityLog::where('quiz_attempt_id', $locked->id)->where('client_event_id', $switchKey)->exists();
+
+                // Count the switch once: on "hidden", or on "visible" if the hidden report never arrived.
+                if (! $alreadyCounted) {
+                    $locked->tab_switch_count++;
+                    $count = $locked->tab_switch_count;
+                    QuizActivityLog::record($locked, QuizActivityLog::TAB_SWITCH, ['count' => $count], $switchKey);
+                    $counted = true;
+
+                    if ($count < $quiz->max_tab_switches) {
+                        $locked->warning_count = $count;
+                        QuizActivityLog::record($locked, QuizActivityLog::WARNING, ['warning' => $count, 'of' => $quiz->max_tab_switches]);
+                    } elseif ($locked->review_status === QuizAttempt::REVIEW_NORMAL) {
+                        $locked->review_status = QuizAttempt::REVIEW_FLAGGED;
+                        $locked->flagged_at = now();
+                        QuizActivityLog::record($locked, QuizActivityLog::FLAGGED, ['tab_switches' => $count, 'threshold' => $quiz->max_tab_switches]);
+                        $autoSubmit = $quiz->auto_submit_on_flag;
+                    }
+                    $locked->save();
+                }
+
+                $returnKey = "{$eventId}:visible";
+                if ($state === 'visible' && ! QuizActivityLog::where('quiz_attempt_id', $locked->id)->where('client_event_id', $returnKey)->exists()) {
+                    QuizActivityLog::record($locked, QuizActivityLog::RETURNED, [], $returnKey);
+                }
+            });
+
+            if ($autoSubmit) {
+                QuizActivityLog::record($attempt, QuizActivityLog::AUTO_SUBMITTED, ['reason' => 'tab_switch_limit']);
+                $this->finalize($attempt, QuizAttempt::STATUS_COMPLETED, 'auto_submitted_after_tab_switches');
+            }
+        }
+
+        $attempt->refresh();
+
+        return [
+            'tab_switch_count' => $attempt->tab_switch_count,
+            'warning_count' => $attempt->warning_count,
+            'max_tab_switches' => $quiz->max_tab_switches,
+            'flagged' => $attempt->review_status !== QuizAttempt::REVIEW_NORMAL,
+            'auto_submitted' => $autoSubmit,
+            'counted' => $counted,
+        ];
     }
 
     /**

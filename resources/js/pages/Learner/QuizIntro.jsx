@@ -50,6 +50,13 @@ export default function QuizIntro({ quiz, unavailableReason, inProgressAttempt, 
                             <li>• You will see whether each answer is correct right after you submit it.</li>
                             <li>• When time runs out, your quiz is submitted automatically.</li>
                             {!quiz.allow_retry && <li className="font-semibold text-amber-700">• This quiz can only be taken once.</li>}
+                            {quiz.tab_detection_enabled && (
+                                <li>
+                                    • Please stay on the quiz page. Leaving it (switching tabs or apps) is recorded and shown to your teacher. After{' '}
+                                    {quiz.max_tab_switches} time{quiz.max_tab_switches === 1 ? '' : 's'}, the attempt is marked for teacher review
+                                    {quiz.auto_submit_on_flag ? ' and submitted automatically' : ''}.
+                                </li>
+                            )}
                         </ul>
 
                         {unavailableReason ? (

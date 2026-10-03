@@ -14,6 +14,9 @@ export default function Create({ bank, categories, difficulties }) {
         randomize_questions: false,
         randomize_choices: false,
         allow_retry: true,
+        tab_detection_enabled: true,
+        max_tab_switches: 3,
+        auto_submit_on_flag: false,
         question_ids: [],
     });
 

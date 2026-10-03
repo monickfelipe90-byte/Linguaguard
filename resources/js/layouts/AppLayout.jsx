@@ -9,6 +9,7 @@ import {
     LayoutDashboard,
     LogOut,
     Menu,
+    ShieldAlert,
     UserCircle2,
     X,
 } from 'lucide-react';
@@ -21,6 +22,7 @@ const adminNav = [
     { href: '/admin/questions', label: 'Question Bank', icon: BookMarked },
     { href: '/admin/quizzes', label: 'Quizzes', icon: ClipboardList },
     { href: '/admin/results', label: 'Results', icon: BarChart3 },
+    { href: '/admin/monitoring', label: 'Monitoring', icon: ShieldAlert },
     { href: '/profile', label: 'Profile', icon: UserCircle2 },
 ];
 

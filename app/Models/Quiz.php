@@ -25,6 +25,9 @@ class Quiz extends Model
         'randomize_questions',
         'randomize_choices',
         'allow_retry',
+        'tab_detection_enabled',
+        'max_tab_switches',
+        'auto_submit_on_flag',
     ];
 
     protected function casts(): array
@@ -36,6 +39,9 @@ class Quiz extends Model
             'randomize_questions' => 'boolean',
             'randomize_choices' => 'boolean',
             'allow_retry' => 'boolean',
+            'tab_detection_enabled' => 'boolean',
+            'max_tab_switches' => 'integer',
+            'auto_submit_on_flag' => 'boolean',
         ];
     }
 

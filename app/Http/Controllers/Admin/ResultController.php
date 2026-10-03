@@ -66,12 +66,24 @@ class ResultController extends Controller
     public function show(QuizAttempt $attempt, QuizEngine $engine): Response
     {
         $engine->expireIfOverdue($attempt);
-        $attempt->load(['quiz', 'user']);
+        $attempt->load(['quiz', 'user', 'reviewer:id,name']);
 
         return Inertia::render('Admin/Results/Show', [
             'attempt' => Present::attempt($attempt),
             'review' => $attempt->isFinished() ? Present::review($attempt, $engine) : [],
             'answeredCount' => $attempt->answers()->whereNotNull('selected_answer')->count(),
+            'reviewer' => $attempt->reviewer?->name,
+            'monitoring' => [
+                'tab_detection_enabled' => $attempt->quiz->tab_detection_enabled,
+                'max_tab_switches' => $attempt->quiz->max_tab_switches,
+            ],
+            'activity' => $attempt->activityLogs()->get(['id', 'event_type', 'details', 'created_at'])
+                ->map(fn ($log) => [
+                    'id' => $log->id,
+                    'type' => $log->event_type,
+                    'details' => $log->details ?? [],
+                    'at' => $log->created_at?->toIso8601String(),
+                ]),
         ]);
     }
 }

@@ -34,6 +34,17 @@ class DashboardController extends Controller
             'recentAttempts' => QuizAttempt::with(['quiz', 'user'])
                 ->latest('id')->take(6)->get()
                 ->map(fn ($a) => Present::attempt($a)),
+            'monitoring' => [
+                'flagged' => QuizAttempt::where('review_status', QuizAttempt::REVIEW_FLAGGED)->count(),
+                'reviewed' => QuizAttempt::where('review_status', QuizAttempt::REVIEW_REVIEWED)->count(),
+                'tab_switches' => (int) QuizAttempt::sum('tab_switch_count'),
+                'with_switches' => QuizAttempt::where('tab_switch_count', '>', 0)->count(),
+                'recent' => QuizAttempt::with(['quiz', 'user'])
+                    ->where(fn ($q) => $q->where('tab_switch_count', '>', 0)->orWhere('review_status', '!=', QuizAttempt::REVIEW_NORMAL))
+                    ->orderByRaw("CASE review_status WHEN 'flagged' THEN 0 ELSE 1 END")
+                    ->latest('id')->take(5)->get()
+                    ->map(fn ($a) => Present::attempt($a)),
+            ],
             'recentQuestions' => Question::latest('id')->take(5)
                 ->get(['id', 'target_word', 'contextual_sentence', 'category', 'difficulty', 'created_at']),
             'recentQuizzes' => Quiz::withCount('quizQuestions as questions_count')

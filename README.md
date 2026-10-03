@@ -26,6 +26,14 @@ LINGUAGUARD is a responsive web-based quiz platform for **Grade 8 learners** tha
 - **Results**: search, filter by quiz / learner / status, detailed result (learner, quiz, score, percentage, answers, correct and incorrect, completion time)
 - **Performance monitoring** (scores and results only): total attempts, average, highest, lowest, passed, failed, pass rate, recent performance
 
+### Anti-cheating and quiz monitoring
+- **Per-quiz security settings** (quiz create/edit): tab-switch detection on/off, maximum tab switches (default 3), automatic submission on reaching the maximum (default off), randomize questions, randomize choices
+- **Tab-switch detection** with the browser Visibility API: the learner sees *Warning 1*, *Warning 2*, and on reaching the maximum the attempt is **flagged for review** (the learner can keep answering unless automatic submission is on). Learners are told about this on the instructions page. The server decides all counts, warnings and flags; duplicate reports are ignored; reloading the page or moving between questions is not counted
+- **Saved randomization**: each attempt's question order and choice order are generated once at start (`quiz_attempt_items`) and never reshuffle; answers are still checked against the original A–D key
+- **Activity log** (`quiz_activity_logs`, server timestamps): quiz started, tab switch, returned to quiz, warning displayed, attempt flagged, automatic submission, quiz submitted, quiz timed out, attempt reviewed
+- **Admin → Monitoring** (and a dashboard section): tab-switch statistics, attempts with learner, quiz/code, tab switches, warnings, status, score and date; filters by quiz, learner, date, attempt status and review status; inspect an attempt's activity timeline and **mark flagged attempts as reviewed** (with optional notes). Scores are never changed by flags or reviews
+- *Limitations:* the browser can only report that the quiz page was hidden. It cannot see other devices, other apps' content, or prove cheating; a notification or a locked phone also counts. A learner could disable JavaScript reporting; detection is a deterrent and a prompt for a conversation, not proof
+
 ### Security and integrity
 - Role-based access (`role` column): learners get a 403 page on admin URLs and admins on learner URLs
 - Passwords hashed with bcrypt; sessions regenerated on login and invalidated on logout; CSRF protection; login rate limiting

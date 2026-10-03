@@ -9,6 +9,7 @@ use App\Models\QuizAttempt;
 use App\Services\QuizEngine;
 use App\Services\QuizException;
 use App\Support\Present;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -69,6 +70,9 @@ class QuizController extends Controller
                 'passing_score' => $quiz->passing_score,
                 'questions_count' => $quiz->quizQuestions()->count(),
                 'allow_retry' => $quiz->allow_retry,
+                'tab_detection_enabled' => $quiz->tab_detection_enabled,
+                'max_tab_switches' => $quiz->max_tab_switches,
+                'auto_submit_on_flag' => $quiz->auto_submit_on_flag,
             ],
             'unavailableReason' => $this->engine->unavailableReason($user, $quiz),
             'inProgressAttempt' => $inProgress?->id,
@@ -136,6 +140,14 @@ class QuizController extends Controller
                 'title' => $attempt->quiz->title,
                 'quiz_code' => $attempt->quiz->quiz_code,
             ],
+            'monitoring' => [
+                'enabled' => $attempt->quiz->tab_detection_enabled,
+                'max_tab_switches' => $attempt->quiz->max_tab_switches,
+                'auto_submit_on_flag' => $attempt->quiz->auto_submit_on_flag,
+                'tab_switch_count' => $attempt->tab_switch_count,
+                'warning_count' => $attempt->warning_count,
+                'flagged' => $attempt->review_status !== QuizAttempt::REVIEW_NORMAL,
+            ],
             'questions' => $questions,
         ]);
     }
@@ -163,6 +175,29 @@ class QuizController extends Controller
         }
 
         return redirect()->route('learner.attempts.play', $attempt);
+    }
+
+    /**
+     * Receives tab-visibility reports from the quiz page. The browser says only
+     * "hidden" or "visible"; counts, warnings and flags are decided by the server.
+     */
+    public function activity(Request $request, QuizAttempt $attempt): JsonResponse
+    {
+        $this->authorizeOwner($request, $attempt);
+
+        $data = $request->validate([
+            'state' => ['required', Rule::in(['hidden', 'visible'])],
+            'event_id' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'],
+        ]);
+
+        $result = $this->engine->recordVisibility($attempt, $data['state'], $data['event_id']);
+        $attempt->refresh();
+
+        return response()->json([
+            ...$result,
+            'finished' => $attempt->isFinished(),
+            'result_url' => $attempt->isFinished() ? route('learner.attempts.result', $attempt) : null,
+        ]);
     }
 
     public function finish(Request $request, QuizAttempt $attempt): RedirectResponse

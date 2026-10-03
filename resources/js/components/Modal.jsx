@@ -4,10 +4,14 @@ import { Button } from './ui';
 
 export function Modal({ open, onClose, children, labelledBy }) {
     const panel = useRef(null);
+    // Keep the latest onClose without re-running the effect: re-running it would
+    // steal focus back to the panel on every parent re-render (e.g. while typing).
+    const closeRef = useRef(onClose);
+    closeRef.current = onClose;
 
     useEffect(() => {
         if (!open) return;
-        const onKey = (e) => e.key === 'Escape' && onClose?.();
+        const onKey = (e) => e.key === 'Escape' && closeRef.current?.();
         document.addEventListener('keydown', onKey);
         const previous = document.activeElement;
         panel.current?.focus();
@@ -17,7 +21,7 @@ export function Modal({ open, onClose, children, labelledBy }) {
             document.body.style.overflow = '';
             previous?.focus?.();
         };
-    }, [open, onClose]);
+    }, [open]);
 
     if (!open) return null;
 

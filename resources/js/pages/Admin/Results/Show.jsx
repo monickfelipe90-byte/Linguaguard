@@ -2,10 +2,11 @@ import { CheckCircle2, ClipboardList, Hourglass, Mail, Timer, User, XCircle } fr
 import AppLayout from '../../../layouts/AppLayout';
 import { BackLink, Card, EmptyState, PageHeader, StatCard } from '../../../components/ui';
 import AnswerReview from '../../../components/AnswerReview';
-import { ResultBadge, StatusBadge } from '../../../components/quiz';
+import ActivityPanel from '../../../components/ActivityPanel';
+import { ResultBadge, ReviewBadge, StatusBadge } from '../../../components/quiz';
 import { formatDate, formatDuration, formatPercent } from '../../../lib/format';
 
-export default function Show({ attempt, review, answeredCount }) {
+export default function Show({ attempt, review, answeredCount, activity, monitoring, reviewer }) {
     const correct = review.filter((r) => r.is_correct).length;
     const finished = attempt.status !== 'in_progress';
 
@@ -38,6 +39,7 @@ export default function Show({ attempt, review, answeredCount }) {
                     <div className="flex flex-wrap gap-2">
                         <StatusBadge status={attempt.status} />
                         <ResultBadge attempt={attempt} />
+                        <ReviewBadge status={attempt.review_status} />
                     </div>
                     <dl className="mt-3 space-y-1 text-sm">
                         <div className="flex justify-between gap-2">
@@ -51,6 +53,8 @@ export default function Show({ attempt, review, answeredCount }) {
                     </dl>
                 </Card>
             </div>
+
+            <ActivityPanel attempt={attempt} activity={activity} monitoring={monitoring} reviewer={reviewer} />
 
             {finished ? (
                 <>

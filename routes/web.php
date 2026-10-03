@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\MonitoringController;
 use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\QuizController as AdminQuizController;
 use App\Http\Controllers\Admin\ResultController;
@@ -46,6 +47,9 @@ Route::middleware('auth')->group(function () {
 
         Route::get('results', [ResultController::class, 'index'])->name('results.index');
         Route::get('results/{attempt}', [ResultController::class, 'show'])->name('results.show');
+        Route::post('results/{attempt}/review', [MonitoringController::class, 'review'])->name('results.review');
+
+        Route::get('monitoring', [MonitoringController::class, 'index'])->name('monitoring.index');
     });
 
     // Learner
@@ -58,6 +62,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/attempts/{attempt}', [LearnerQuizController::class, 'play'])->name('attempts.play');
         Route::post('/attempts/{attempt}/answers', [LearnerQuizController::class, 'answer'])->middleware('throttle:120,1')->name('attempts.answer');
         Route::post('/attempts/{attempt}/finish', [LearnerQuizController::class, 'finish'])->name('attempts.finish');
+        Route::post('/attempts/{attempt}/activity', [LearnerQuizController::class, 'activity'])->middleware('throttle:60,1')->name('attempts.activity');
         Route::get('/attempts/{attempt}/result', [LearnerQuizController::class, 'result'])->name('attempts.result');
         Route::get('/history', [LearnerQuizController::class, 'history'])->name('history');
     });

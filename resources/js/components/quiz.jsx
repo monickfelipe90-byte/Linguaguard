@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock3, Hourglass, Trophy, TrendingUp } from 'lucide-react';
+import { CheckCircle2, Clock3, Hourglass, ShieldAlert, ShieldCheck, Trophy, TrendingUp } from 'lucide-react';
 import { Badge, cx } from './ui';
 import { difficultyTones, formatPercent, statusLabels, statusTones } from '../lib/format';
 
@@ -61,5 +61,22 @@ export function ScoreBar({ percentage, passing, className }) {
             </div>
             <span className="w-14 text-right text-sm font-bold text-slate-700 tabular-nums">{formatPercent(value)}</span>
         </div>
+    );
+}
+
+export const reviewLabels = {
+    normal: 'Normal',
+    flagged: 'Flagged for review',
+    reviewed: 'Reviewed',
+};
+
+export function ReviewBadge({ status }) {
+    const tones = { normal: 'slate', flagged: 'amber', reviewed: 'green' };
+    const icons = { normal: ShieldCheck, flagged: ShieldAlert, reviewed: CheckCircle2 };
+    const s = status || 'normal';
+    return (
+        <Badge tone={tones[s]} icon={icons[s]}>
+            {reviewLabels[s] ?? s}
+        </Badge>
     );
 }

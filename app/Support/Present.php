@@ -21,6 +21,11 @@ class Present
             'percentage' => $attempt->percentage,
             'status' => $attempt->status,
             'passed' => $attempt->passed(),
+            'tab_switch_count' => (int) $attempt->tab_switch_count,
+            'warning_count' => (int) $attempt->warning_count,
+            'review_status' => $attempt->review_status ?? QuizAttempt::REVIEW_NORMAL,
+            'flagged_at' => $attempt->flagged_at?->toIso8601String(),
+            'reviewed_at' => $attempt->reviewed_at?->toIso8601String(),
             'started_at' => $attempt->started_at?->toIso8601String(),
             'completed_at' => $attempt->completed_at?->toIso8601String(),
             'duration_seconds' => $attempt->started_at && $attempt->completed_at

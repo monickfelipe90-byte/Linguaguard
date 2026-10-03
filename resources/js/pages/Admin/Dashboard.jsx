@@ -1,12 +1,12 @@
 import { Link } from '@inertiajs/react';
-import { Activity, Award, BookMarked, ClipboardCheck, ClipboardList, Plus, Target, Users } from 'lucide-react';
+import { Activity, Award, BookMarked, ClipboardCheck, ClipboardList, Plus, ShieldAlert, ShieldCheck, Target, Users } from 'lucide-react';
 import AppLayout from '../../layouts/AppLayout';
 import { Badge, Card, CardHeader, EmptyState, LinkButton, PageHeader, StatCard } from '../../components/ui';
-import { CategoryBadge, DifficultyBadge, ResultBadge, StatusBadge } from '../../components/quiz';
+import { CategoryBadge, DifficultyBadge, ResultBadge, ReviewBadge, StatusBadge } from '../../components/quiz';
 import PerformancePanel from '../../components/PerformancePanel';
 import { formatDate, formatPercent } from '../../lib/format';
 
-export default function Dashboard({ stats, performance, recentAttempts, recentQuestions, recentQuizzes }) {
+export default function Dashboard({ stats, performance, monitoring, recentAttempts, recentQuestions, recentQuizzes }) {
     return (
         <AppLayout title="Admin Dashboard">
             <PageHeader
@@ -36,6 +36,56 @@ export default function Dashboard({ stats, performance, recentAttempts, recentQu
             <div className="mt-6">
                 <PerformancePanel performance={performance} />
             </div>
+
+            <Card className="mt-6">
+                <CardHeader
+                    title="Anti-Cheating Monitoring"
+                    description="Tab-switch activity and attempts flagged for review."
+                    icon={ShieldAlert}
+                    action={
+                        <Link href="/admin/monitoring" className="text-sm font-semibold text-indigo-600 hover:text-indigo-500">
+                            Open monitoring
+                        </Link>
+                    }
+                />
+                <div className="grid grid-cols-2 gap-px bg-slate-100 sm:grid-cols-4">
+                    {[
+                        { label: 'Flagged for review', value: monitoring.flagged, tone: 'text-amber-600', href: '/admin/monitoring?review=flagged' },
+                        { label: 'Reviewed', value: monitoring.reviewed, tone: 'text-emerald-600', href: '/admin/monitoring?review=reviewed' },
+                        { label: 'Tab switches', value: monitoring.tab_switches, tone: 'text-indigo-600', href: '/admin/monitoring' },
+                        { label: 'Attempts with switches', value: monitoring.with_switches, tone: 'text-sky-600', href: '/admin/monitoring' },
+                    ].map((s) => (
+                        <Link key={s.label} href={s.href} className="bg-white p-4 hover:bg-slate-50">
+                            <p className="truncate text-xs font-semibold text-slate-500">{s.label}</p>
+                            <p className={`text-2xl font-extrabold tabular-nums ${s.tone}`}>{s.value}</p>
+                        </Link>
+                    ))}
+                </div>
+                {monitoring.recent.length === 0 ? (
+                    <EmptyState icon={ShieldCheck} title="No tab-switch activity yet." className="py-8" />
+                ) : (
+                    <ul className="divide-y divide-slate-100">
+                        {monitoring.recent.map((a) => (
+                            <li key={a.id}>
+                                <Link href={`/admin/results/${a.id}#activity`} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 hover:bg-slate-50">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate font-semibold text-slate-900">{a.learner.name}</p>
+                                        <p className="truncate text-sm text-slate-500">
+                                            {a.quiz.title} · <span className="font-mono text-violet-700">{a.quiz.quiz_code}</span> · {formatDate(a.completed_at ?? a.started_at)}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-bold tabular-nums">
+                                            {a.tab_switch_count} switch{a.tab_switch_count === 1 ? '' : 'es'}
+                                        </span>
+                                        <ReviewBadge status={a.review_status} />
+                                    </div>
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </Card>
 
             <div className="mt-6 grid gap-6 xl:grid-cols-5">
                 <Card className="xl:col-span-3">
